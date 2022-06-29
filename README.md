@@ -17,7 +17,7 @@ cd saimon-global-task
 npm install
 ```
 ## Step-2: If Redis database is not installed in your machine, install Redis. Otherwise the project will not run. 
-## Step-3: Change the value .env file value if you want or run it by keeping as it is. 
+## Step-3: Change the values of .env file if you want to run it in your own environment or run it by keeping all the values as it is. 
 ## Step-4: Run the following command to run the project.
 ```
 npm start
