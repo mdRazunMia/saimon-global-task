@@ -7,8 +7,9 @@ A sample node js (Express Js) CRUD API Package.
 **Note**  
 This sample express app, has https enabled already.    
 
+### Clone the repository, install node packages  and verify routes locally  
+
 ## Step-1: From github
-### Clone the repository, install node packages  and verify routes locally
 
 ```
 git clone https://github.com/mdRazunMia/saimon-global-task
