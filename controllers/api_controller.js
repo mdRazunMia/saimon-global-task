@@ -1,14 +1,10 @@
 const Package = require("../models/package_model");
 const redisInstance = require("../redis/redis");
 const validator = require("../validations/validations");
-// const redisInstance = redis.redisConnectAndGetTheInstance();
+
+//Create a package
 
 const createPackage = async (req, res) => {
-  // const redisClient = redisInstance.getRedisClient();
-  // const data = redisClient.get(userEmail);
-  //  ( data === null);
-  // redisClient.set("name");
-
   const { error, value } = validator.inpoutValidation({
     title: req.body.title,
     description: req.body.description,
@@ -45,27 +41,98 @@ const createPackage = async (req, res) => {
   }
 };
 
+//without Redis
+// const getPackages = async (req, res) => {
+//   try {
+//     if (Object.keys(req.query).length !== 0) {
+//       console.log("inside query block");
+//       var queryParamsArray = [];
+//       if (req.query.title) {
+//         console.log("inside title");
+//         queryParamsArray.push({ title: new RegExp(req.query.title, "i") });
+//       }
+
+//       if (req.query.description) {
+//         console.log("inside description");
+//         queryParamsArray.push({
+//           description: new RegExp(req.query.description, "i"),
+//         });
+//       }
+
+//       if (req.query.cityName) {
+//         console.log("inside city name");
+//         queryParamsArray.push({
+//           cityName: new RegExp(req.query.cityName, "i"),
+//         });
+//       }
+
+//       if (req.query.startingPrice) {
+//         queryParamsArray.push({
+//           startingPrice: parseFloat(req.query.startingPrice),
+//         });
+//       }
+
+//       if (req.query.duration) {
+//         queryParamsArray.push({ duration: parseFloat(req.query.duration) });
+//       }
+
+//       if (req.query.isActive) {
+//         var isTrueSet = req.query.isActive === "true";
+//         queryParamsArray.push({ isActive: isTrueSet });
+//       }
+
+//       if (req.query.isMostPopular) {
+//         var isTrueSet = req.query.isMostPopular === "true";
+//         queryParamsArray.push({ isMostPopular: isTrueSet });
+//       }
+
+//       const allPackages = await Package.find({
+//         $and: queryParamsArray,
+//       });
+//       if (allPackages.length === 0) {
+//         return res.status(404).send({
+//           errorMessage: "There is no package.",
+//         });
+//       } else {
+//         return res.status(200).send({
+//           packages: allPackages,
+//         });
+//       }
+//     }
+
+//     const allPackages = await Package.find();
+//     if (allPackages.length === 0) {
+//       return res.status(404).send({
+//         errorMessage: "There is no package.",
+//       });
+//     } else {
+//       return res.status(200).send({
+//         packages: allPackages,
+//       });
+//     }
+//   } catch (error) {
+//     res.status(500).send({ errorMessage: "Internal server error." });
+//   }
+// };
+
+//with redis
 const getPackages = async (req, res) => {
   var redisClient = redisInstance.getRedisClient();
 
   try {
     if (Object.keys(req.query).length !== 0) {
-      console.log("inside query block");
       var queryParamsArray = [];
       if (req.query.title) {
-        console.log("inside title");
         queryParamsArray.push({ title: new RegExp(req.query.title, "i") });
       }
 
       if (req.query.description) {
-        console.log("inside description");
         queryParamsArray.push({
-          description: new RegExp(req.query.cityName, "i"),
+          description: new RegExp(req.query.description, "i"),
         });
       }
 
       if (req.query.cityName) {
-        console.log("inside city name");
         queryParamsArray.push({
           cityName: new RegExp(req.query.cityName, "i"),
         });
@@ -81,7 +148,7 @@ const getPackages = async (req, res) => {
         queryParamsArray.push({ duration: parseFloat(req.query.duration) });
       }
 
-      if (req.query.isActive === "true") {
+      if (req.query.isActive) {
         var isTrueSet = req.query.isActive === "true";
         queryParamsArray.push({ isActive: isTrueSet });
       }
@@ -90,33 +157,54 @@ const getPackages = async (req, res) => {
         var isTrueSet = req.query.isMostPopular === "true";
         queryParamsArray.push({ isMostPopular: isTrueSet });
       }
+      // const queryData = await redisClient.get("queryData");
+      // if (queryData === null) {
       const allPackages = await Package.find({
         $and: queryParamsArray,
       });
-      if (!allPackages) {
+
+      if (allPackages.length === 0) {
         return res.status(404).send({
           errorMessage: "There is no package.",
         });
       } else {
+        // redisClient.set("queryData", JSON.stringify(allPackages), {
+        //   EX: Number(process.env.REDIS_EXP_TIME),
+        // });
         return res.status(200).send({
           packages: allPackages,
         });
       }
+      // } else {
+      //   return res.status(200).send({ packages: JSON.parse(queryData) });
+      // }
     }
-    const allPackages = await Package.find();
-    if (!allPackages) {
-      return res.status(404).send({
-        errorMessage: "There is no package.",
-      });
+
+    const data = await redisClient.get("packages");
+    if (data === null) {
+      const allPackages = await Package.find();
+      if (allPackages.length === 0) {
+        return res.status(404).send({
+          errorMessage: "There is no package.",
+        });
+      } else {
+        redisClient.set("packages", JSON.stringify(allPackages), {
+          EX: Number(process.env.REDIS_EXP_TIME),
+        });
+        return res.status(200).send({
+          packages: allPackages,
+        });
+      }
     } else {
-      return res.status(200).send({
-        packages: allPackages,
-      });
+      return res.status(200).send({ packages: JSON.parse(data) });
     }
   } catch (error) {
+    res.status(500).send({ errorMessage: "Internal server error." });
     console.log(error);
   }
 };
+
+//get a single package by ID
 
 const singlePackage = async (req, res) => {
   const id = req.params.id;
@@ -131,8 +219,13 @@ const singlePackage = async (req, res) => {
         package: package,
       });
     }
-  } catch (error) {}
+  } catch (error) {
+    res.status(500).send({ errorMessage: "Internal server error." });
+    console.log(error);
+  }
 };
+
+//update a package
 
 const updatePackage = async (req, res) => {
   const id = req.params.id;
@@ -151,7 +244,6 @@ const updatePackage = async (req, res) => {
         errors.push({ [value]: currentMessage });
       });
     });
-    // res.status(422).send({ message: error.details[0].message });
     return res.status(422).send(errors);
   } else {
     try {
@@ -169,25 +261,30 @@ const updatePackage = async (req, res) => {
           message: "Package has been updated successfully.",
         });
       }
-    } catch (error) {}
+    } catch (error) {
+      res.status(500).send({ errorMessage: "Internal server error." });
+    }
   }
 };
+
+//delete a package
 
 const deletePackage = async (req, res) => {
   const id = req.params.id;
   try {
-    const deletedPackage = await Package.deleteOne(id);
+    const deletedPackage = await Package.findByIdAndDelete(id);
     if (!deletedPackage) {
       return res.status(204).send({
         errorMessage: "Package has not been deleted.",
       });
     } else {
       return res.status(201).send({
-        package: deletedPackage,
         message: "Package has been deleted successfully.",
       });
     }
-  } catch (error) {}
+  } catch (error) {
+    res.status(500).send({ errorMessage: "Internal server error." });
+  }
 };
 
 //add plans to the package
@@ -208,59 +305,10 @@ const addPlanToThePackage = async (req, res) => {
         message: "Plan has been added successfully in the Package.",
       });
     }
-  } catch (error) {}
+  } catch (error) {
+    res.status(500).send({ errorMessage: "Internal server error." });
+  }
 };
-
-// const getSearchedContent = async (req, res) => {
-//   let value;
-//   let boolValue;
-//   let number;
-//   if (isNaN(req.params.value)) {
-//     value = req.params.value;
-//     if (value === "true" || value === "false") {
-//       boolValue = value;
-//     }
-//     console.log(`string: ${value}`);
-//   } else if (typeof req.params.value === "boolean") {
-//     boolValue = req.params.value;
-//     console.log(`boolean value: ${boolValue}`);
-//   } else {
-//     number = req.params.value;
-//     console.log(`number: ${number}`);
-//   }
-//   try {
-//     const searchedData = await Package.find({
-//       $or: [
-//         {
-//           title: new RegExp(value, "i"),
-//         },
-//         {
-//           startingPrice: number,
-//         },
-//         {
-//           cityName: new RegExp(value, "i"),
-//         },
-//         {
-//           isActive: boolValue,
-//         },
-//         {
-//           isMostPoplar: boolValue,
-//         },
-//       ],
-//     });
-//     if (!searchedData) {
-//       return res.status(404).send({
-//         errorMessage: "Package is not found.",
-//       });
-//     } else {
-//       return res.status(200).send({
-//         packages: searchedData,
-//       });
-//     }
-//   } catch (error) {
-//     console.log(error);
-//   }
-// };
 
 module.exports = {
   createPackage,
@@ -269,5 +317,4 @@ module.exports = {
   singlePackage,
   updatePackage,
   addPlanToThePackage,
-  // getSearchedContent,
 };
