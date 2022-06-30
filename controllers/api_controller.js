@@ -157,8 +157,6 @@ const getPackages = async (req, res) => {
         var isTrueSet = req.query.isMostPopular === "true";
         queryParamsArray.push({ isMostPopular: isTrueSet });
       }
-      // const queryData = await redisClient.get("queryData");
-      // if (queryData === null) {
       const allPackages = await Package.find({
         $and: queryParamsArray,
       });
@@ -168,16 +166,10 @@ const getPackages = async (req, res) => {
           errorMessage: "There is no package.",
         });
       } else {
-        // redisClient.set("queryData", JSON.stringify(allPackages), {
-        //   EX: Number(process.env.REDIS_EXP_TIME),
-        // });
         return res.status(200).send({
           packages: allPackages,
         });
       }
-      // } else {
-      //   return res.status(200).send({ packages: JSON.parse(queryData) });
-      // }
     }
 
     const data = await redisClient.get("packages");
